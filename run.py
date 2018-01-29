@@ -10,7 +10,7 @@ configs = json.loads(open('configs.json').read())
 tstart = time.time()
 
 def plot_results(predicted_data, true_data):
-    fig=plt.figure(figsize=(18, 12), dpi= 80, facecolor='w', edgecolor='k')
+    fig=plt.figure(0)
     ax = fig.add_subplot(111)
     ax.plot(true_data, label='True Data')
     plt.plot(predicted_data, label='Prediction')
@@ -31,7 +31,7 @@ def predict_sequences_multiple(model, data, window_size, prediction_len):
     return prediction_seqs
 
 def plot_results_multiple(predicted_data, true_data, prediction_len):
-    fig=plt.figure(figsize=(18, 12), dpi= 80, facecolor='w', edgecolor='k')
+    fig=plt.figure(1)
     ax = fig.add_subplot(111)
     ax.plot(true_data, label='True Data')
     #Pad the list of predictions to shift it in the graph to it's correct start
@@ -49,6 +49,7 @@ def generator_strip_xy(data_gen, true_values):
     
 def fit_model_threaded(model, data_gen_train, steps_per_epoch, configs):
     """thread worker for model fitting - so it doesn't freeze on jupyter notebook"""
+
     model = lstm.build_network([ncols, 150, 150, 1])
     model.fit_generator(
         data_gen_train,
@@ -59,74 +60,94 @@ def fit_model_threaded(model, data_gen_train, steps_per_epoch, configs):
     print('> Model Trained! Weights saved in', configs['model']['filename_model'])
     return
 
-dl = etl.ETL()
-dl.create_clean_datafile(
-    filename_in = configs['data']['filename'],
-    filename_out = configs['data']['filename_clean'],
-    batch_size = configs['data']['batch_size'],
-    x_window_size = configs['data']['x_window_size'],
-    y_window_size = configs['data']['y_window_size'],
-    y_col = configs['data']['y_predict_column'],
-    filter_cols = configs['data']['filter_columns'],
-    normalise = True
-)
 
-print('> Generating clean data from:', configs['data']['filename_clean'], 'with batch_size:', configs['data']['batch_size'])
+if __name__ == '__main__':
 
-data_gen_train = dl.generate_clean_data(
-    configs['data']['filename_clean'],
-    batch_size=configs['data']['batch_size']
-)
+    dl = etl.ETL()
 
-with h5py.File(configs['data']['filename_clean'], 'r') as hf:
-    nrows = hf['x'].shape[0]
-    ncols = hf['x'].shape[2]
-    
-ntrain = int(configs['data']['train_test_split'] * nrows)
-steps_per_epoch = int((ntrain / configs['model']['epochs']) / configs['data']['batch_size'])
-print('> Clean data has', nrows, 'data rows. Training on', ntrain, 'rows with', steps_per_epoch, 'steps-per-epoch')
+    # dl.create_clean_datafile(
+    #     filename_in = configs['data']['filename'],
+    #     filename_out = configs['data']['filename_clean'],
+    #     batch_size = configs['data']['batch_size'],
+    #     x_window_size = configs['data']['x_window_size'],
+    #     y_window_size = configs['data']['y_window_size'],
+    #     y_col = configs['data']['y_predict_column'],
+    #     filter_cols = configs['data']['filter_columns'],
+    #     normalise = True
+    # )
 
-model = lstm.build_network([ncols, 150, 150, 1])
-t = threading.Thread(target=fit_model_threaded, args=[model, data_gen_train, steps_per_epoch, configs])
-t.start()
+    print('> Generating clean data from: `' + configs['data']['filename_clean'] + '` with batch_size:', configs['data']['batch_size'])
 
-data_gen_test = dl.generate_clean_data(
-    configs['data']['filename_clean'],
-    batch_size=configs['data']['batch_size'],
-    start_index=ntrain
-)
+    data_gen_train = dl.generate_clean_data(
+        configs['data']['filename_clean'],
+        batch_size=configs['data']['batch_size']
+    )
 
-ntest = nrows - ntrain
-steps_test = int(ntest / configs['data']['batch_size'])
-print('> Testing model on', ntest, 'data rows with', steps_test, 'steps')
+    with h5py.File(configs['data']['filename_clean'], 'r') as hf:
+        nrows = hf['x'].shape[0]
+        ncols = hf['x'].shape[2]
 
-predictions = model.predict_generator(
-    generator_strip_xy(data_gen_test, true_values),
-    steps=steps_test
-)
+    ntrain = int(configs['data']['train_test_split'] * nrows)
 
-#Save our predictions
-with h5py.File(configs['model']['filename_predictions'], 'w') as hf:
-    dset_p = hf.create_dataset('predictions', data=predictions)
-    dset_y = hf.create_dataset('true_values', data=true_values)
-    
-plot_results(predictions[:800], true_values[:800])
+    steps_per_epoch = int(ntrain / configs['data']['batch_size'])
 
-#Reload the data-generator
-data_gen_test = dl.generate_clean_data(
-    configs['data']['filename_clean'],
-    batch_size=800,
-    start_index=ntrain
-)
-data_x, true_values = next(data_gen_test)
-window_size = 50 #numer of steps to predict into the future
+    print('> Clean data has', nrows, 'data rows. Training on', ntrain, 'rows with', steps_per_epoch, 'steps-per-epoch')
 
-#We are going to cheat a bit here and just take the next 400 steps from the testing generator and predict that data in its whole
-predictions_multiple = predict_sequences_multiple(
-    model,
-    data_x,
-    data_x[0].shape[0],
-    window_size
-)
+  #  model = lstm.build_network([ncols, 150, 150, 75, 1])
+    model = lstm.load_model('data/model_saved.h5',False)
+    model = lstm.compile_model(model)
 
-plot_results_multiple(predictions_multiple, true_values, window_size)
+    for i in range(configs['model']['epochs']):
+        model.fit_generator(
+            data_gen_train,
+            steps_per_epoch=steps_per_epoch,
+            epochs=1
+        )
+        data_gen_train = dl.generate_clean_data(
+            configs['data']['filename_clean'],
+            batch_size=configs['data']['batch_size']
+        )
+
+    model.save(configs['model']['filename_model'])
+    print('> Model Trained! Weights saved in', configs['model']['filename_model'])
+
+    data_gen_test = dl.generate_clean_data(
+        configs['data']['filename_clean'],
+        batch_size=configs['data']['batch_size'],
+        start_index=ntrain
+    )
+
+    ntest = nrows - ntrain
+    steps_test = int(ntest / configs['data']['batch_size'])
+    print('> Testing model on', ntest, 'data rows with', steps_test, 'steps')
+
+    predictions = model.predict_generator(
+        generator_strip_xy(data_gen_test, true_values),
+        steps=steps_test
+    )
+
+    #Save our predictions
+    with h5py.File(configs['model']['filename_predictions'], 'w') as hf:
+        dset_p = hf.create_dataset('predictions', data=predictions)
+        dset_y = hf.create_dataset('true_values', data=true_values)
+
+    plot_results(predictions[:800], true_values[:800])
+
+    #Reload the data-generator
+    data_gen_test = dl.generate_clean_data(
+        configs['data']['filename_clean'],
+        batch_size=800,
+        start_index=ntrain
+    )
+    data_x, true_values = next(data_gen_test)
+    window_size = 50 #number of steps to predict into the future
+
+    #We are going to cheat a bit here and just take the next 400 steps from the testing generator and predict that data in its whole
+    predictions_multiple = predict_sequences_multiple(
+        model,
+        data_x,
+        data_x[0].shape[0],
+        window_size
+    )
+
+    plot_results_multiple(predictions_multiple, true_values, window_size)

@@ -6,13 +6,11 @@ from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 from keras.models import load_model
-from keras import optimizers
 
 configs = json.loads(open(os.path.join(os.path.dirname(__file__), 'configs.json')).read())
 warnings.filterwarnings("ignore") #Hide messy Numpy warnings
 
 def build_network(layers):
-    print('build_network start')
     model = Sequential()
 
     model.add(LSTM(
@@ -27,36 +25,21 @@ def build_network(layers):
     model.add(Dropout(0.2))
 
     model.add(Dense(
-        layers[3]))
-    model.add(Dropout(0.2))
-
-    model.add(Dense(
-        output_dim=layers[4]))
-    model.add(Activation("linear"))
-
-    optimizer = optimizers.Adam(lr=0.001, decay=1e-6, amsgrad=True)
+        output_dim=layers[3]))
+    model.add(Activation("tanh"))
 
     start = time.time()
     model.compile(
         loss=configs['model']['loss_function'],
-        optimizer=optimizer)
-    # optimizer=configs['model']['optimiser_function'])
+        optimizer=configs['model']['optimiser_function'])
 
     print("> Compilation Time : ", time.time() - start)
     return model
 
-def compile_model(model):
-    optimizer = optimizers.Adam(lr=0.001, amsgrad=True)
-    model.compile(
-            loss=configs['model']['loss_function'],
-            optimizer=optimizer)
-    return model
-
-def load_network(filename, compile=True):
+def load_network(filename):
     #Load the h5 saved model and weights
     if(os.path.isfile(filename)):
-        return load_model(filename,compile)
+        return load_model(filename)
     else:
         print('ERROR: "' + filename + '" file does not exist as a h5 model')
         return None
-

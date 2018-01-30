@@ -1,11 +1,9 @@
-import time
-import time
-import threading
-import lstm, etl, json
 import numpy as np
-import pandas as pd
+import time
+import lstm_keras, etl_keras, json
 import h5py
 import matplotlib.pyplot as plt
+
 configs = json.loads(open('configs.json').read())
 tstart = time.time()
 
@@ -50,7 +48,7 @@ def generator_strip_xy(data_gen, true_values):
 def fit_model_threaded(model, data_gen_train, steps_per_epoch, configs):
     """thread worker for model fitting - so it doesn't freeze on jupyter notebook"""
 
-    model = lstm.build_network([ncols, 150, 150, 1])
+    model = lstm_keras.build_network([ncols, 150, 150, 1])
     model.fit_generator(
         data_gen_train,
         steps_per_epoch=steps_per_epoch,
@@ -63,7 +61,7 @@ def fit_model_threaded(model, data_gen_train, steps_per_epoch, configs):
 
 if __name__ == '__main__':
 
-    dl = etl.ETL()
+    dl = etl_keras.ETL()
 
     # dl.create_clean_datafile(
     #     filename_in = configs['data']['filename'],
@@ -94,8 +92,8 @@ if __name__ == '__main__':
     print('> Clean data has', nrows, 'data rows. Training on', ntrain, 'rows with', steps_per_epoch, 'steps-per-epoch')
 
   #  model = lstm.build_network([ncols, 150, 150, 75, 1])
-    model = lstm.load_model('data/model_saved.h5',False)
-    model = lstm.compile_model(model)
+    model = lstm_keras.load_model('data/model_saved.h5', False)
+    model = lstm_keras.compile_model(model)
 
     for i in range(configs['model']['epochs']):
         model.fit_generator(

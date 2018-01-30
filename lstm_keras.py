@@ -2,8 +2,6 @@ import os
 import time
 import json
 import warnings
-import numpy as np
-from numpy import newaxis
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential

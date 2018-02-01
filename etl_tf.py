@@ -38,8 +38,9 @@ class ETL:
         x_data = []
         y_data = []
 
-        skip_first_n = self._batch_size - self._x_window_size - self._y_window_size
+        skip_first_n = self._batch_size - self._x_window_size - self._y_window_size + 1
         print('> While cleaning data, not use the first {} data for batch size alignment'.format(skip_first_n))
+        print('> Total Batch num: {}'.format((num_rows-self._batch_size)/self._batch_size))
         i = skip_first_n
         while (i + self._x_window_size + self._y_window_size) <= num_rows:
             x_window_data = data[i:(i + self._x_window_size)]
@@ -127,9 +128,19 @@ class ETL:
 
     def zero_base_standardize(self, data, abs_base=pd.DataFrame()):
         """Standardize dataframe to be zero based percentage returns from i=0"""
-        if (abs_base.empty): abs_base = data.iloc[0]
+        if abs_base.empty: abs_base = data.iloc[0]
         data_standardized = (data / abs_base) - 1
         return (abs_base, data_standardized)
+
+    def zero_base_de_standardize(self, data, n, m):
+        """De-standardize zero based percentage data to original data
+        data가 filename_in의 n번째 index부터 m개의 'close'데이터라는 것을 전제로 한다
+        현재 y_window_size가 1이 아닌 경우는 고려하지 않았다
+        """
+        ori_data = pd.read_csv(self._filename_in, index_col=0)
+
+        for i in range(m):
+            data[i] = (data[i] + 1) * ori_data['close'].values[n-self._x_window_size+i]
 
     def min_max_normalize(self, data, data_min=pd.DataFrame(), data_max=pd.DataFrame()):
         """Normalize a Pandas dataframe using column-wise min-max normalization

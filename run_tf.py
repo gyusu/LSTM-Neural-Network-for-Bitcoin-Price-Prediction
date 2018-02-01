@@ -1,4 +1,5 @@
 # coding=utf-8
+import numpy as np
 import tensorflow as tf
 import etl_tf, lstm_tf, plot
 import h5py
@@ -21,8 +22,8 @@ dl = etl_tf.ETL(
     normalize = True
 )
 
-# 새로운 데이터(window_size 사용 시 주석 해제하여야 함
-# dl.create_clean_datafile()
+# 새로운 데이터(or window_size or batch size, .. 사용 시 주석 해제하여야 함
+dl.create_clean_datafile()
 
 print('> Generating clean data from:', configs['data']['filename_clean'],
       'with batch_size:', configs['data']['batch_size'])
@@ -56,8 +57,15 @@ data_gen_test = dl.generate_clean_data(ntrain, -1)
 true_values = []
 predictions = model.predict(steps_test, data_gen_test, true_values)
 
-# plot the last batch of the data
 batch_size = configs['data']['batch_size']
+
+# de-normalize data
+# Surely, true_values could be obtained from input file directly
+true_values = np.array(true_values)
+dl.zero_base_de_standardize(true_values[-batch_size:], -batch_size, batch_size)
+dl.zero_base_de_standardize(predictions[-batch_size:], -batch_size, batch_size)
+
+# plot the last batch of the data
 plot.plot_results(predictions[-batch_size:], true_values[-batch_size:])
 
 # Test 2. Predict t+1, t+2, ... , t+50 close prices
@@ -68,5 +76,11 @@ data_x, true_values = next(data_gen_test)
 prediction_len = 50  # number of steps to predict into the future
 
 predictions_multiple = model.predict_sequences_multiple(data_x, data_x.shape[1], prediction_len)
+
+# de-normalize data
+true_values = np.array(true_values)
+dl.zero_base_de_standardize(true_values[-batch_size:], -batch_size, batch_size)
+for i, x in enumerate(predictions_multiple):
+    dl.zero_base_de_standardize(x, -batch_size + i * len(x), len(x))
 
 plot.plot_results_multiple(predictions_multiple, true_values, prediction_len)

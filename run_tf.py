@@ -1,49 +1,11 @@
 # coding=utf-8
 import tensorflow as tf
-import numpy as np
-import etl_tf, lstm_tf
+import etl_tf, lstm_tf, plot
 import h5py
 import json
 import time
-import matplotlib.pyplot as plt
 
 tf.set_random_seed(777) # for reproducibility
-
-def plot_results(predicted_data, true_data):
-    fig = plt.figure(0)
-    ax = fig.add_subplot(111)
-    ax.plot(true_data, label='True Data')
-    plt.plot(predicted_data, label='Prediction')
-    plt.legend()
-    plt.show()
-
-
-def predict_sequences_multiple(model, data, window_size, prediction_len):
-    # Before shifting prediction run forward by prediction_len steps,
-    # predict sequence of prediction_len steps
-    prediction_seqs = []
-    for i in range(int(len(data) / prediction_len)):
-        curr_frame = data[i * prediction_len]
-        predicted = []
-        for j in range(prediction_len):
-            predicted.append(model.predict_once(curr_frame[np.newaxis, :, :])[0, 0])
-            curr_frame = curr_frame[1:]
-            curr_frame = np.insert(curr_frame, [window_size - 1], predicted[-1], axis=0)
-        prediction_seqs.append(predicted)
-    return prediction_seqs
-
-
-def plot_results_multiple(predicted_data, true_data, prediction_len):
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111)
-    ax.plot(true_data, label='True Data')
-    # Pad the list of predictions to shift it in the graph to it's correct start
-    for i, data in enumerate(predicted_data):
-        padding = [None for p in range(i * prediction_len)]
-        plt.plot(padding + data, label='Prediction')
-        plt.legend()
-    plt.show()
-
 
 configs = json.loads(open('configs.json').read())
 tstart = time.time()
@@ -100,7 +62,7 @@ with h5py.File(configs['model']['filename_predictions'], 'w') as hf:
     dset_y = hf.create_dataset('true_values', data=true_values)
 
 # plot a subset of the data
-plot_results(predictions[:800], true_values[:800])
+plot.plot_results(predictions[:800], true_values[:800])
 
 # Test 2. Predict t+1, t+2, ... , t+50 close prices
 # We are going to cheat a bit here
@@ -110,11 +72,6 @@ data_gen_test = dl.generate_clean_data(ntrain, -1)
 data_x, true_values = next(data_gen_test)
 prediction_len = 50  # number of steps to predict into the future
 
-predictions_multiple = predict_sequences_multiple(
-    model,
-    data_x,
-    data_x.shape[1],
-    prediction_len
-)
+predictions_multiple = model.predict_sequences_multiple(data_x, data_x.shape[1], prediction_len)
 
-plot_results_multiple(predictions_multiple, true_values, prediction_len)
+plot.plot_results_multiple(predictions_multiple, true_values, prediction_len)

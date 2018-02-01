@@ -90,4 +90,16 @@ class LSTM:
         test_predict = self.session.run(self._Y_pred, feed_dict={self._X: test_x})
         return test_predict
 
-
+    def predict_sequences_multiple(self, data, window_size, prediction_len):
+        # Before shifting prediction run forward by prediction_len steps,
+        # predict sequence of prediction_len steps
+        prediction_seqs = []
+        for i in range(int(len(data) / prediction_len)):
+            curr_frame = data[i * prediction_len]
+            predicted = []
+            for j in range(prediction_len):
+                predicted.append(self.predict_once(curr_frame[np.newaxis, :, :])[0, 0])
+                curr_frame = curr_frame[1:]
+                curr_frame = np.insert(curr_frame, [window_size - 1], predicted[-1], axis=0)
+            prediction_seqs.append(predicted)
+        return prediction_seqs

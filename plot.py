@@ -6,7 +6,7 @@ def plot_results(predicted_data, true_data):
     ax.plot(true_data, label='True Data')
     plt.plot(predicted_data, label='Prediction')
     plt.legend()
-    plt.show()
+    plt.show(block=False)
 
 def plot_results_multiple(predicted_data, true_data, prediction_len):
     fig = plt.figure(1)

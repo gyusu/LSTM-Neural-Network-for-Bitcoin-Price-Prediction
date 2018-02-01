@@ -37,7 +37,10 @@ class ETL:
         num_rows = len(data)
         x_data = []
         y_data = []
-        i = 0
+
+        skip_first_n = self._batch_size - self._x_window_size - self._y_window_size
+        print('> While cleaning data, not use the first {} data for batch size alignment'.format(skip_first_n))
+        i = skip_first_n
         while (i + self._x_window_size + self._y_window_size) <= num_rows:
             x_window_data = data[i:(i + self._x_window_size)]
             y_window_data = data[(i + self._x_window_size):(i + self._x_window_size + self._y_window_size)]
@@ -61,9 +64,7 @@ class ETL:
             i += 1
 
             # Restrict yielding until we have enough in our batch. Then clear x, y data for next batch
-            # 이 방식은 마지막(최신) 데이터 중 최대 batch size만큼은 yield하지 않아서
-            # 사용하지 않게되는 문제가 있다.
-            if i % self._batch_size == 0:
+            if (i-skip_first_n) % self._batch_size == 0:
                 # Convert from list to 3 dimensional numpy array [windows, window_val, val_dimension]
                 x_np_arr = np.array(x_data)
                 # y_np_arr.shape == (windows,)
@@ -80,10 +81,11 @@ class ETL:
         # 이건 function call이 아니라 generator를 만든 것이다.
         data_gen = self.clean_data()
 
-        i = 0
+        i = 2
         with h5py.File(self._filename_out, 'w') as hf:
             x1, y1 = next(data_gen)
             # Initialize hdf5 x, y datasets with first chunk of data
+            print('> Creating x & y data files | Batch num: 1', end='')
             rcount_x = x1.shape[0]
             dset_x = hf.create_dataset('x', shape=x1.shape, maxshape=(None, x1.shape[1], x1.shape[2]), chunks=True)
             dset_x[:] = x1
@@ -93,7 +95,7 @@ class ETL:
 
             for x_batch, y_batch in data_gen:
                 # Append batches to x, y hdf5 datasets
-                print('\r> Creating x & y data files | Batch: {}'.format(i), end='')
+                print('\r> Creating x & y data files | Batch num: {}'.format(i), end='')
                 dset_x.resize(rcount_x + x_batch.shape[0], axis=0)
                 dset_x[rcount_x:] = x_batch
                 rcount_x += x_batch.shape[0]
@@ -107,8 +109,10 @@ class ETL:
     def generate_clean_data(self, start_index, end_index):
 
         with h5py.File(self._filename_out, 'r') as hf:
-            if end_index == -1:
-                end_index = hf['x'].shape[0]
+            if start_index < 0:
+                start_index += hf['x'].shape[0]
+            if end_index < 0:
+                end_index += hf['x'].shape[0]
             i = start_index
             while True:
                 if i >= end_index:

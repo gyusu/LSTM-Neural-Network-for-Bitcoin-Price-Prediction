@@ -56,19 +56,14 @@ data_gen_test = dl.generate_clean_data(ntrain, -1)
 true_values = []
 predictions = model.predict(steps_test, data_gen_test, true_values)
 
-# Save our predictions
-with h5py.File(configs['model']['filename_predictions'], 'w') as hf:
-    dset_p = hf.create_dataset('predictions', data=predictions)
-    dset_y = hf.create_dataset('true_values', data=true_values)
-
-# plot a subset of the data
-plot.plot_results(predictions[:800], true_values[:800])
+# plot the last batch of the data
+batch_size = configs['data']['batch_size']
+plot.plot_results(predictions[-batch_size:], true_values[-batch_size:])
 
 # Test 2. Predict t+1, t+2, ... , t+50 close prices
-# We are going to cheat a bit here
-# and just take batch_size data from the testing generator
+# we just take latest (batch_size) data from the testing generator
 # and predict that data in its whole
-data_gen_test = dl.generate_clean_data(ntrain, -1)
+data_gen_test = dl.generate_clean_data(-batch_size, -1)
 data_x, true_values = next(data_gen_test)
 prediction_len = 50  # number of steps to predict into the future
 

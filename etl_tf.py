@@ -125,6 +125,12 @@ class ETL:
                 i += self._batch_size
                 yield (data_x, data_y)
 
+    def generate_latest_window_data(self):
+        data = pd.read_csv(self._filename_in, index_col=0)
+        x_data = data[-self._x_window_size :]
+        abs_base, x_data = self.zero_base_standardize(x_data)
+        abs_min, abs_max, x_data = self.min_max_normalize(x_data)
+        return x_data.values
 
     def zero_base_standardize(self, data, abs_base=pd.DataFrame()):
         """Standardize dataframe to be zero based percentage returns from i=0"""
@@ -132,15 +138,18 @@ class ETL:
         data_standardized = (data / abs_base) - 1
         return (abs_base, data_standardized)
 
-    def zero_base_de_standardize(self, data, n, m):
+    def zero_base_de_standardize(self, data, n, m, latest=False):
         """De-standardize zero based percentage data to original data
         data가 filename_in의 n번째 index부터 m개의 'close' 예측 데이터라는 것을 전제로 한다
         현재 y_window_size가 1이 아닌 경우는 고려하지 않았다
         """
         ori_data = pd.read_csv(self._filename_in, index_col=0)
-
-        for i in range(m):
-            data[i] = (data[i] + 1) * ori_data['close'].values[n-self._x_window_size+i]
+        if latest:
+            for i in range(m):
+                data[i] = (data[i] + 1) * ori_data['close'].values[- self._x_window_size + i]
+        else:
+            for i in range(m):
+                data[i] = (data[i] + 1) * ori_data['close'].values[n-self._x_window_size+i]
 
     def min_max_normalize(self, data, data_min=pd.DataFrame(), data_max=pd.DataFrame()):
         """Normalize a Pandas dataframe using column-wise min-max normalization

@@ -46,11 +46,11 @@ model = lstm_tf.LSTM(sess, configs['data']['x_window_size'], ncols,
 sess.run(tf.global_variables_initializer())
 
 # Train the model
-# data_gen_train = dl.generate_clean_data(0, ntrain)
-# model.train(configs['model']['epochs'], steps_per_epoch, data_gen_train, save=True)
+data_gen_train = dl.generate_clean_data(0, ntrain)
+model.train(configs['model']['epochs'], steps_per_epoch, data_gen_train, save=True)
 
 # Load a trained model
-model.load_model('epoch9_loss9.85e-03')
+# model.load_model('epoch9_loss9.85e-03')
 
 ntest = nrows - ntrain
 steps_test = int(ntest / configs['data']['batch_size'])
@@ -78,6 +78,8 @@ plot.plot_results(predictions[-batch_size:], true_values[-batch_size:])
 data_gen_test = dl.generate_clean_data(-batch_size, -1)
 data_x, true_values = next(data_gen_test)
 prediction_len = 50  # number of steps to predict into the future
+latest_data_x = dl.generate_latest_window_data()
+np.append(data_x, latest_data_x)
 
 predictions_multiple = model.predict_sequences_multiple(data_x, data_x.shape[1], prediction_len)
 
@@ -85,6 +87,11 @@ predictions_multiple = model.predict_sequences_multiple(data_x, data_x.shape[1],
 true_values = np.array(true_values)
 dl.zero_base_de_standardize(true_values[-batch_size:], -batch_size, batch_size)
 for i, x in enumerate(predictions_multiple):
+    if i == len(predictions_multiple) - 1: break
+
     dl.zero_base_de_standardize(x, -batch_size + i * len(x), len(x))
+
+x = predictions_multiple[-1]
+dl.zero_base_de_standardize(x, 0, len(x), latest=True)
 
 plot.plot_results_multiple(predictions_multiple, true_values, prediction_len)

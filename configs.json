@@ -17,9 +17,10 @@
         "y_predict_column": "close"
     },
     "model": {
-        "epochs": 1,
+        "epochs": 10,
         "loss_function": "mse",
         "optimiser_function": "Nadam",
+        "dirname_save_model": "saved_models/",
         "filename_model": "data/model_saved.h5"
     }
 }

@@ -23,7 +23,7 @@ dl = etl_tf.ETL(
 )
 
 # 새로운 데이터(or window_size or batch size, .. 사용 시 주석 해제하여야 함
-dl.create_clean_datafile()
+# dl.create_clean_datafile()
 
 print('> Generating clean data from:', configs['data']['filename_clean'],
       'with batch_size:', configs['data']['batch_size'])
@@ -41,12 +41,16 @@ print('> Clean data has', nrows, 'data rows. Training on', ntrain, 'rows with', 
 
 # Building a model
 sess =tf.Session()
-model = lstm_tf.LSTM(sess, configs['data']['x_window_size'], ncols)
+model = lstm_tf.LSTM(sess, configs['data']['x_window_size'], ncols,
+                     configs['model']['dirname_save_model'])
 sess.run(tf.global_variables_initializer())
 
 # Train the model
-data_gen_train = dl.generate_clean_data(0, ntrain)
-model.train(configs['model']['epochs'], steps_per_epoch, data_gen_train)
+# data_gen_train = dl.generate_clean_data(0, ntrain)
+# model.train(configs['model']['epochs'], steps_per_epoch, data_gen_train, save=True)
+
+# Load a trained model
+model.load_model('epoch9_loss9.85e-03')
 
 ntest = nrows - ntrain
 steps_test = int(ntest / configs['data']['batch_size'])

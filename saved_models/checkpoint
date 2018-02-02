@@ -1,0 +1,2 @@
+model_checkpoint_path: "epoch9_loss9.85e-03"
+all_model_checkpoint_paths: "epoch9_loss9.85e-03"

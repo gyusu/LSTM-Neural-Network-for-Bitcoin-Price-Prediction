@@ -1,11 +1,13 @@
 # coding=utf-8
 import numpy as np
 import tensorflow as tf
+import datetime
+import os
 
 class LSTM:
 
     def __init__(self, session: tf.Session, x_window_size: int, ncols: int,
-               name: str="main") -> None:
+               dirname_save_model: str, name: str="main") -> None:
         """
         Args:
           session (tf.Session): Tensorflow session
@@ -18,7 +20,7 @@ class LSTM:
         self.x_window_size = x_window_size
         self.ncols = ncols
         self.net_name = name
-
+        self.save_path = dirname_save_model
         self._build_network()
 
     def _build_network(self, h_size=150, l_rate=0.001) -> None:
@@ -56,8 +58,9 @@ class LSTM:
             self._predictions = tf.placeholder(tf.float32, [None, 1])
             self._rmse = tf.sqrt(tf.reduce_mean(tf.square(self._targets - self._predictions)))
 
-    def train(self, epochs, steps_per_epoch, data_gen_train):
+    def train(self, epochs, steps_per_epoch, data_gen_train, save=False):
         self.session.run(tf.global_variables_initializer())
+        step_loss=0
 
         for i in range(epochs):
             for j in range(steps_per_epoch):
@@ -66,6 +69,10 @@ class LSTM:
                 _, step_loss = self.session.run([self._train, self._loss], feed_dict={
                     self._X: batch_x, self._Y: batch_y})
                 print("[epoch: {}, step: {}] loss: {}".format(i, j, step_loss))
+
+            if save:
+                # save model at every epoch
+                self.save_model('epoch{}_loss{:.2e}'.format(i, step_loss), write_meta_graph=(i==0))
 
     def predict(self, steps_test, data_gen_test, true_values):
         rmse_list = np.array([])
@@ -103,3 +110,36 @@ class LSTM:
                 curr_frame = np.insert(curr_frame, [window_size - 1], predicted[-1], axis=0)
             prediction_seqs.append(predicted)
         return prediction_seqs
+
+    def save_model(self, modelname='', write_meta_graph=False):
+        saver = tf.train.Saver()
+        if modelname == '':
+            # make today's file name
+            today = datetime.date.today()
+            today = today.strftime('%y%m%d')
+            modelname = 'model' + today
+
+        save_path = 'saved_models/'
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        save_path_full = os.path.join(save_path, modelname)
+        saver.save(self.session, save_path_full, write_meta_graph=write_meta_graph)
+
+    def load_model(self, modelname):
+        load_path = 'saved_models/'
+        meta_filename = modelname + '.meta'
+        ckpt_filename = modelname
+
+        # meta path formatting : saved_model/modelname.meta
+        meta_path_full = os.path.join(load_path, meta_filename)
+        # ckpt path formatting : saved_model/modelname (error occur if + '.ckpt')
+        ckpt_path_full = os.path.join(load_path, ckpt_filename)
+
+        print('>Load checkpoint : {}'.format(ckpt_path_full))
+        saver = tf.train.Saver()
+        # tf.reset_default_graph()
+        # saver = tf.train.import_meta_graph(meta_path_full)
+        print(tf.train.latest_checkpoint(load_path))
+        saver.restore(self.session, ckpt_path_full)
+

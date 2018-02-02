@@ -134,7 +134,7 @@ class ETL:
 
     def zero_base_de_standardize(self, data, n, m):
         """De-standardize zero based percentage data to original data
-        data가 filename_in의 n번째 index부터 m개의 'close'데이터라는 것을 전제로 한다
+        data가 filename_in의 n번째 index부터 m개의 'close' 예측 데이터라는 것을 전제로 한다
         현재 y_window_size가 1이 아닌 경우는 고려하지 않았다
         """
         ori_data = pd.read_csv(self._filename_in, index_col=0)

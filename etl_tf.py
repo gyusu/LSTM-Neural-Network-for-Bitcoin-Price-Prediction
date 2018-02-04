@@ -38,9 +38,9 @@ class ETL:
         x_data = []
         y_data = []
 
-        skip_first_n = self._batch_size - self._x_window_size - self._y_window_size + 1
+        skip_first_n = (num_rows - self._x_window_size - self._y_window_size) % self._batch_size + 1
         print('> While cleaning data, not use the first {} data for batch size alignment'.format(skip_first_n))
-        print('> Total Batch num: {}'.format((num_rows-self._batch_size)/self._batch_size))
+        print('> Total Batch num: {}'.format((num_rows - skip_first_n - self._x_window_size - self._y_window_size + 1)/self._batch_size))
         i = skip_first_n
         while (i + self._x_window_size + self._y_window_size) <= num_rows:
             x_window_data = data[i:(i + self._x_window_size)]

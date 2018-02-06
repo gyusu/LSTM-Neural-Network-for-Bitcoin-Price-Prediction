@@ -65,6 +65,11 @@ class LSTM:
         for i in range(epochs):
             for j in range(steps_per_epoch):
                 batch_x, batch_y = next(data_gen_train)
+
+                # shuffle the batch
+                p = np.random.permutation(len(batch_x))
+                batch_x, batch_y = batch_x[p], batch_y[p]
+
                 batch_y = np.array(batch_y).reshape(-1, 1)
                 _, step_loss = self.session.run([self._train, self._loss], feed_dict={
                     self._X: batch_x, self._Y: batch_y})
